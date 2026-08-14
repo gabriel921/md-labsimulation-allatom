@@ -20,6 +20,12 @@ own shell, with no SLURM involved. Both modes reuse the exact same
 `grompp`/`mdrun` commands and the same segment-continuation logic — only the
 submission/dependency mechanism differs.
 
+Related Publication
+
+This workflow was used in the following published study on Aβ42 conformational dynamics:
+
+Martins, G. F.; Rocha, C.; Galamba, N. Temperature-Dependent Dynamics of Aβ42 and α-Synuclein Monomers and Early Oligomerization of Aβ42: Shared Residues Mediate Intra- and Intermolecular β-Sheets. ACS Chem. Neurosci. 2026, 17(13), 2504–2516. doi: 10.1021/acschemneuro.6c00242
+
 ---
 
 ## 1. Requirements
