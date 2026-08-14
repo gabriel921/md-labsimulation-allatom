@@ -1,0 +1,69 @@
+; =============================================================================
+; eq_npt_allatom.mdp — NPT equilibration
+; Duration: 5000000 steps × 0.002 ps = 10 ns per SLURM segment
+; Continuation from NVT; h-bonds only constrained; Parrinello-Rahman barostat.
+; =============================================================================
+
+title = Ab42 NPT Equilibration
+
+; ── Run parameters ──────────────────────────────────────────────────────────
+integrator  = md
+nsteps      = 50          ; 5000000 × 0.002 ps = 10 ns
+dt          = 0.002             ; 2 fs
+tinit       = 0.0               ; updated per-segment by the SLURM script
+
+; ── Output control ──────────────────────────────────────────────────────────
+nstxout            = 0          ; no full-precision coordinate output
+nstvout            = 0          ; no velocity output
+nstenergy          = 1000       ; energies every 2 ps
+nstlog             = 1000       ; log every 2 ps
+nstxout-compressed = 1000       ; compressed coordinates every 2 ps
+compressed-x-precision = 10000
+
+; ── Bond constraints ────────────────────────────────────────────────────────
+; H-bonds only — standard for 2 fs timestep
+continuation          = yes
+constraint_algorithm  = lincs
+constraints           = h-bonds
+lincs_iter            = 2
+lincs_order           = 4
+
+; ── Neighbour searching ─────────────────────────────────────────────────────
+cutoff-scheme           = Verlet
+ns_type                 = grid
+rcoulomb                = 1.0
+rvdw                    = 1.0
+verlet-buffer-tolerance = 1.0e-06
+
+; ── Electrostatics ──────────────────────────────────────────────────────────
+coulombtype     = PME
+pme_order       = 4
+fourierspacing  = 0.16
+
+; ── Temperature coupling ────────────────────────────────────────────────────
+tcoupl  = V-rescale
+tc-grps = Protein non-Protein
+tau_t   = 0.1   0.1
+ref_t   = 310   310             ; 310 K (physiological)
+
+; ── Pressure coupling ───────────────────────────────────────────────────────
+pcoupl          = Parrinello-Rahman
+pcoupltype      = isotropic
+tau_p           = 2.0
+ref_p           = 1.0
+compressibility = 4.5e-5
+refcoord_scaling = com
+
+; ── Periodic boundary conditions ────────────────────────────────────────────
+pbc = xyz
+
+; ── Dispersion correction ───────────────────────────────────────────────────
+DispCorr = EnerPres
+
+; ── Velocity generation — OFF (continuation) ────────────────────────────────
+gen_vel = no
+
+; ── COM motion removal ──────────────────────────────────────────────────────
+nstcomm   = 10
+comm-mode = Linear
+comm-grps = System

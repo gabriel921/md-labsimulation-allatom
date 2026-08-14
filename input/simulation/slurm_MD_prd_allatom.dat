@@ -1,0 +1,41 @@
+# =============================================================================
+# slurm_MD_prd_allatom.dat — Production MD SLURM configuration
+# Sourced automatically by slurm_MD_prd_allatom.sh
+# =============================================================================
+
+# ── JOB NAME ─────────────────────────────────────────────────────────────────
+Name=ab42_PRD
+
+# ── GROMACS EXECUTABLE ───────────────────────────────────────────────────────
+# Uncomment the appropriate line for your cluster.
+#grom=/gromacs/gromacs-2021.2/bin/gmx       #For CPU Production
+grom=/gromacs/gromacs-2021.2-GPU/bin/gmx
+export GMXLIB=$HOME/Desktop/GMXLIB
+
+# ── COMPUTE RESOURCES ────────────────────────────────────────────────────────
+ncpus=8
+
+# ── INPUT FILES ──────────────────────────────────────────────────────────────
+top=topol.top
+index=index.ndx
+mdp=prd_allatom.mdp
+# Set gro to the last .gro from the NPT run before submitting.
+# Example: if NPT ran 5 segments, copy 3_npt/005.gro here and set: gro=005.gro
+gro=001.gro
+
+# ── SIMULATION SEGMENTS ──────────────────────────────────────────────────────
+# Each segment = nsteps × dt from the .mdp file.
+# With nsteps=5000000 and dt=0.002: each segment = 10 ns → 100 segments = 1 µs.
+Segments=3
+
+# ── PARALLEL SETTINGS ────────────────────────────────────────────────────────
+Rcon=0.0
+
+# ── CLUSTER PARTITION ────────────────────────────────────────────────────────
+Partition=GPUD,GPUH
+
+# ── SLURM REQUEUE ────────────────────────────────────────────────────────────
+requeue=1
+
+# ── EMAIL NOTIFICATION ───────────────────────────────────────────────────────
+Email=""

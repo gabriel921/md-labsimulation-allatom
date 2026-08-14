@@ -1,0 +1,70 @@
+; =============================================================================
+; eq_nvt_allatom.mdp — NVT equilibration
+; Duration: 250000 steps × 0.001 ps = 250 ps
+; Protein position restrained; velocities generated from scratch.
+; =============================================================================
+
+title   = Ab42 NVT Equilibration
+define  = -DPOSRES              ; apply position restraints on the protein
+
+; ── Run parameters ──────────────────────────────────────────────────────────
+integrator  = md
+nsteps      = 50             ; 250000 × 0.001 ps = 250 ps
+dt          = 0.001             ; 1 fs (conservative for initial equilibration)
+tinit       = 0.0
+
+; ── Output control ──────────────────────────────────────────────────────────
+nstxout     = 1000              ; coordinates every 1 ps
+nstvout     = 1000              ; velocities every 1 ps
+nstenergy   = 1000              ; energies every 1 ps
+nstlog      = 1000              ; log every 1 ps
+
+; ── Bond constraints ────────────────────────────────────────────────────────
+; All bonds constrained — allows safe use of 1 fs timestep
+continuation         = no
+constraint_algorithm = lincs
+constraints          = all-bonds
+lincs_iter           = 2
+lincs_order          = 4
+
+; ── Neighbour searching ─────────────────────────────────────────────────────
+cutoff-scheme           = Verlet
+ns_type                 = grid
+nstlist                 = 10
+rlist                   = 1.0
+rcoulomb                = 1.0
+rvdw                    = 1.0
+verlet-buffer-tolerance = 1.0e-06
+
+; ── Electrostatics ──────────────────────────────────────────────────────────
+coulombtype     = PME
+pme_order       = 4
+fourierspacing  = 0.16
+
+; ── Temperature coupling ────────────────────────────────────────────────────
+tcoupl  = V-rescale
+tc-grps = Protein non-Protein
+tau_t   = 0.1   0.1
+ref_t   = 310   310             ; 310 K (physiological)
+
+; ── Pressure coupling — OFF for NVT ─────────────────────────────────────────
+pcoupl  = no
+
+; ── Periodic boundary conditions ────────────────────────────────────────────
+pbc = xyz
+
+; ── Dispersion correction ───────────────────────────────────────────────────
+DispCorr = EnerPres
+
+; ── Velocity generation ─────────────────────────────────────────────────────
+gen_vel  = yes
+gen_temp = 310
+gen_seed = -1                   ; random seed
+
+; ── COM motion removal ──────────────────────────────────────────────────────
+nstcomm   = 10
+comm-mode = Linear
+comm-grps = System
+
+; ── Energy groups (optional, for analysis) ──────────────────────────────────
+energygrps = Protein SOL

@@ -1,0 +1,49 @@
+# =============================================================================
+# slurm_MD_eq_NPT_allatom.dat — NPT equilibration SLURM configuration
+# Sourced automatically by slurm_MD_eq_NPT_allatom.sh
+# =============================================================================
+
+# ── JOB NAME ─────────────────────────────────────────────────────────────────
+Name=ab42_NPT
+
+# ── GROMACS EXECUTABLE ───────────────────────────────────────────────────────
+# Uncomment the appropriate line for your cluster.
+#grom=/gromacs/gromacs-2021.2/bin/gmx       #For CPU equilibration
+grom=/gromacs/gromacs-2021.2-GPU/bin/gmx
+export GMXLIB=$HOME/Desktop/GMXLIB
+
+# ── COMPUTE RESOURCES ────────────────────────────────────────────────────────
+# For GPU jobs: 4, 8, or 16 threads are typical.
+ncpus=8
+
+# ── INPUT FILES ──────────────────────────────────────────────────────────────
+top=topol.top
+index=index.ndx
+mdp=eq_npt_allatom.mdp
+gro=nvt.gro          # starting structure (linked as 000.gro by the SLURM script)
+
+# ── SIMULATION SEGMENTS ──────────────────────────────────────────────────────
+# Each segment corresponds to one run of nsteps in the .mdp file.
+# With nsteps=5000000 and dt=0.002, each segment = 10 ns → 5 segments = 50 ns NPT.
+Segments=1
+
+# ── PARALLEL SETTINGS ────────────────────────────────────────────────────────
+# Reduce Rcon (0.6–1.2 nm) only if running very small systems on many cores.
+Rcon=0.0
+
+# ── CLUSTER PARTITION ────────────────────────────────────────────────────────
+# Comma-separated list; no spaces. Use GPU partition if grom path contains "GPU".
+# Available partitions (adapt to your cluster):
+#   GPUH  — High-memory GPU nodes
+#   GPUL  — Low-memory GPU nodes
+#   GPUD  — Default GPU nodes
+#   MD    — CPU-only MD nodes
+Partition=GPUH,GPUD
+
+# ── SLURM REQUEUE ────────────────────────────────────────────────────────────
+# 1 = restart job on another node if the assigned node reboots; 0 = do not.
+requeue=1
+
+# ── EMAIL NOTIFICATION ───────────────────────────────────────────────────────
+# Leave blank for no notification. Separate multiple addresses with commas.
+Email=""
