@@ -5,6 +5,7 @@
 ; =============================================================================
 
 title = Ab42 NPT Equilibration
+define  = -DPOSRES              ; apply position restraints on the protein
 
 ; ── Run parameters ──────────────────────────────────────────────────────────
 integrator  = md
