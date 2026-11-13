@@ -77,6 +77,7 @@ ${grom} grompp \\
     -f  \${j}.mdp \\
     -po \${j}_out.mdp \\
     -c  \${l} \\
+    -r  \${l} \\
     -n  ${Dir}/${index} \\
     -p  ${Dir}/${top} \\
     -pp TMP_processed.top \\
