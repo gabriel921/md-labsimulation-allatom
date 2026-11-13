@@ -33,7 +33,7 @@ Martins, G. F.; Rocha, C.; Galamba, N. Temperature-Dependent Dynamics of Aβ42 a
 - GROMACS (tested with 2021.2; both CPU and GPU builds are supported)
 - Bash
 - For SLURM mode: a SLURM cluster with `sbatch`, and either a CPU or GPU
-  partition set up (see [SLURM execution](#4-slurm-execution))
+  partition set up (see [SLURM execution](#5-slurm-execution))
 - The analysis scripts have their own dependencies — see the comments at the
   top of `run_setup_analysis.sh` and the scripts it calls.
 
@@ -91,12 +91,57 @@ normal use.
 | `PDB` | Input PDB filename (must sit next to the script) |
 | `SYS` | System name prefix used for output files |
 | `GMX` | Path to the `gmx` executable used for local steps (prep, minimisation, NVT, and — in local mode — NPT/production) |
-| `GMXLIB` | External force-field directory — see [Force fields and GMXLIB](#5-force-fields-and-gmxlib) |
+| `GMXLIB` | External force-field directory — see [Force fields and GMXLIB](#6-force-fields-and-gmxlib) |
 | `BOX_PADDING`, `BOX_TYPE`, `ION_CONC` | Box/solvation/ionisation parameters |
 | `NTHREADS` | Thread count for local steps |
 | `MAXWARN` | `grompp -maxwarn` value |
 | `FF`, `WM` | Force field / water model menu indices passed to `pdb2gmx` |
 | `REPLICATES` | Number of independent production replicates (each gets its own `4_prd/repN/`) |
+
+### Terminal charges (`-ter`)
+
+`pdb2gmx` is run with the `-ter` flag, so it asks, for every chain, which
+start (N-terminus) and end (C-terminus) type to use. The script answers these
+prompts for you, based on three variables in the USER CONFIGURATION block:
+
+```bash
+NUM_CHAINS=1    # number of chains in the PDB
+TERMINI_N=0     # start (N-terminus) menu number
+TERMINI_C=0     # end (C-terminus) menu number
+```
+
+`NUM_CHAINS` is the number of chains in your PDB. The same `TERMINI_N` /
+`TERMINI_C` answers are repeated for every chain, so all chains get the same
+terminus choice. For a standard CHARMM36m start (e.g. Aβ42, which starts with
+ASP-1), the menu numbers are:
+
+| | 0 | 1 |
+|---|---|---|
+| `TERMINI_N` (N-terminus) | NH3+ (charged) | NH2 (neutral) |
+| `TERMINI_C` (C-terminus) | COO- (charged) | COOH (neutral) |
+
+> **Warning — special cases in CHARMM36m.** Some first residues (e.g. MET, and
+> possibly others such as GLY or PRO) get an extra entry at the top of the
+> N-terminus menu (e.g. `MET1`), which shifts NH3+ / NH2 to different numbers
+> (for MET-1: 1 = NH3+, 2 = NH2). The C-terminus menu can differ too. Always
+> check manually before trusting these settings: run
+> `gmx pdb2gmx -f <your.pdb> -ter` by hand, read the menu for your own system,
+> and confirm which numbers correspond to NH3+/NH2 and COO-/COOH.
+
+### Position restraints in NPT (`POSRES_NPT`)
+
+```bash
+POSRES_NPT=yes   # or: no
+```
+
+- `yes` — keeps the `define = -DPOSRES` line in the NPT `.mdp`, so the protein
+  is position-restrained during NPT equilibration.
+- `no` — comments that line out, so NPT runs without position restraints.
+
+Only the per-run copy of `eq_npt_allatom.mdp` placed in `3_npt/` is modified;
+the template in `mdp/` is never touched. With `POSRES_NPT=yes`, the `grompp`
+call in the NPT scripts needs a reference structure for the restraints
+(`-r`), e.g. the NVT output `nvt.gro`.
 
 ### Execution mode
 
@@ -110,7 +155,7 @@ EXECUTION_MODE=slurm   # or: local
   in the foreground, in the current shell.
 
 See [Local execution](#4-local-execution) and
-[SLURM execution](#4-slurm-execution) below.
+[SLURM execution](#5-slurm-execution) below.
 
 ### Step counts and block counts
 
@@ -173,7 +218,7 @@ including NPT and production.
 
 ---
 
-## 4. SLURM execution
+## 5. SLURM execution
 
 Set `EXECUTION_MODE=slurm` (the default) and run:
 
@@ -198,6 +243,13 @@ applied to the copies of the `.mdp`/`.dat` files placed in `3_npt/` and each
 dependency chain, self-requeue logic, and directory layout are completely
 unaffected.
 
+### Running NPT equilibration on GPU
+
+To run the NPT equilibration on a GPU, edit
+`input/simulation/slurm_MD_eq_NPT_allatom.dat` and change both the GROMACS
+version (to a GPU-enabled build) and the partition (to a GPU partition on your
+cluster). Nothing else in the workflow needs to change.
+
 Monitor with:
 
 ```bash
@@ -207,7 +259,7 @@ squeue -u $USER
 
 ---
 
-## 5. Force fields and GMXLIB
+## 6. Force fields and GMXLIB
 
 `GMXLIB` lets you point GROMACS at an external directory of force fields
 without touching your installed GROMACS copy:
@@ -252,7 +304,7 @@ topology files.
 
 ---
 
-## 6. Analysis
+## 7. Analysis
 
 Once production trajectories exist (`4_prd/repN/traj_all_center_PBC.xtc`),
 run:

@@ -44,9 +44,15 @@ INP_DIR=$(pwd)/input/simulation          # Directory containing .dat files + slu
 FF=13                                    # 13 = CHARMM36m July 2021. Change if needed — check your GMXLIB
 WM=1
 
+NUM_CHAINS=1                             #Number of chains in the PDB
+TERMINI_N=0                              #Charged = 0, Neutral = 1 (repeats for every chain)
+TERMINI_C=0                              #Pay attention to special cases. Check the README file
+
+POSRES_NPT=yes                           # POSRES_NPT: position restraints during NPT equilibration. 
+                                         # yes = keep "define = -DPOSRES" in the NPT .mdp     no = comment it out
 REPLICATES=3                             # Number of independent production replicates
-                                          # Each gets its own 4_prd/repN subfolder,
-                                          # all starting from the same NPT endpoint.
+                                         # Each gets its own 4_prd/repN subfolder,
+                                         # all starting from the same NPT endpoint.
 
 # ── EXECUTION MODE ────────────────────────────────────────────────────────────
 # "slurm" (default) — unchanged original behaviour: NPT and production run as
@@ -68,7 +74,7 @@ NPT_NSTEPS=50                            # nsteps written into the NPT .mdp for 
 NPT_DT=0.002                             # dt (ps) written into the NPT .mdp for this run
 NPT_SEGMENTS=1                           # number of NPT blocks (SLURM Segments= / local loop count)
 
-PROD_NSTEPS=5000                         # nsteps written into the production .mdp for this run
+PROD_NSTEPS=500                          # nsteps written into the production .mdp for this run
 PROD_DT=0.002                            # dt (ps) written into the production .mdp for this run
 PROD_SEGMENTS=3                          # number of production blocks per replicate
 
@@ -97,6 +103,7 @@ NPT=3_npt
 PRD=4_prd
 
 TOP=topol.top
+POS=posre.itp
 NDX=index.ndx
 
 # ── HELPER FUNCTIONS ─────────────────────────────────────────────────────────
@@ -111,6 +118,14 @@ patch_mdp_steps() {
     local mdp_file="$1" nsteps="$2" dt="$3"
     sed -i "s/^nsteps[[:space:]]*=.*/nsteps      = ${nsteps}          ; set by run_setup.sh/" "$mdp_file"
     sed -i "s/^dt[[:space:]]*=.*/dt          = ${dt}             ; set by run_setup.sh/"     "$mdp_file"
+}
+
+# <<< CHANGED (new function) — comments out the define line in the per-run copy only
+patch_mdp_posres() {
+    local mdp_file="$1" use_posres="$2"
+    if [ "$use_posres" = "no" ]; then
+        sed -i 's/^define[[:space:]]*=.*/; define disabled by run_setup.sh (POSRES_NPT=no)/' "$mdp_file"
+    fi
 }
 
 # Patches Segments= into a copied SLURM .dat file (never touches the
@@ -193,6 +208,16 @@ case "$EXECUTION_MODE" in
         ;;
 esac
 
+# <<< CHANGED (new block) — validate the two new options
+[[ "$NUM_CHAINS" =~ ^[1-9][0-9]*$ ]] || die "NUM_CHAINS='$NUM_CHAINS' — must be a positive integer."
+for t in "$TERMINI_N" "$TERMINI_C"; do
+    [[ "$t" =~ ^[0-9]+$ ]] || die "Invalid TERMINI value '$t' — must be a pdb2gmx menu number (0, 1, 2, ...)."
+done
+case "$POSRES_NPT" in
+    yes|no) ;;
+    *) die "Unknown POSRES_NPT='$POSRES_NPT' — must be 'yes' or 'no'." ;;
+esac
+
 check_forcefield "$FF"
 log "All checks passed."
 
@@ -238,8 +263,9 @@ log "$PREP/system_groups.cfg written."
 # ── STEP 0 — Topology generation ─────────────────────────────────────────────
 log "STEP 0 — pdb2gmx: generating topology and .gro from $PDB..."
 cd $PREP
-printf "%s\n%s\n" "$FF" "$WM" | \
-    $GMX pdb2gmx -f ../$PDB -ignh -o ${SYS}.gro
+{ printf "%s\n%s\n" "$FF" "$WM"
+  for i in $(seq 1 "$NUM_CHAINS"); do printf "%s\n%s\n" "$TERMINI_N" "$TERMINI_C"; done; } |   # <<< CHANGED (N/C answers repeated per chain)
+    $GMX pdb2gmx -f ../$PDB -ignh -ter -o ${SYS}.gro                      # <<< CHANGED (-ter added)
 check_file "${SYS}.gro"
 check_file "$TOP"
 
@@ -312,11 +338,13 @@ if [ "$EXECUTION_MODE" = "slurm" ]; then
     log "STEP 6 — Setting up NPT folder and submitting SLURM job..."
     cd $NPT
     cp ../$PREP/$TOP       .
+    cp ../$PREP/$POS       .
     cp ../$NVT/$NDX        .
     cp ../$NVT/nvt.gro     .
     cp ../$NVT/nvt.cpt     .
     cp $MDP_DIR/eq_npt_allatom.mdp .
     patch_mdp_steps eq_npt_allatom.mdp "$NPT_NSTEPS" "$NPT_DT"
+    patch_mdp_posres eq_npt_allatom.mdp "$POSRES_NPT"                     # <<< CHANGED (new line)
     cp $INP_DIR/slurm_MD_eq_NPT_allatom.dat .
     patch_dat_segments slurm_MD_eq_NPT_allatom.dat "$NPT_SEGMENTS"
     cp $INP_DIR/slurm_MD_eq_NPT_allatom.sh  .
@@ -414,6 +442,7 @@ else
     cp ../$NVT/nvt.cpt     .
     cp $MDP_DIR/eq_npt_allatom.mdp .
     patch_mdp_steps eq_npt_allatom.mdp "$NPT_NSTEPS" "$NPT_DT"
+    patch_mdp_posres eq_npt_allatom.mdp "$POSRES_NPT"                     # <<< CHANGED (new line)
 
     GMX=$GMX NTHREADS=$NTHREADS MDP=eq_npt_allatom.mdp TOP=$TOP NDX=$NDX \
     GRO=nvt.gro SEGMENTS=$NPT_SEGMENTS MAXWARN=$MAXWARN \
